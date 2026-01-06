@@ -1,73 +1,126 @@
-# React + TypeScript + Vite
+# 🚀 LexiMatch - Similarity Search Engine
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**LexiMatch** est un moteur de recherche de similarité haute performance développé pour **LittleBig Connection**. Il permet de filtrer et de classer des termes au sein d'un dataset personnalisé en utilisant un algorithme de comparaison par fenêtre glissante.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🏗️ Architecture du Code
+Le projet est structuré selon le principe de **séparation des préoccupations (SoC)** :
 
-## React Compiler
+### 1. Couche Logique (`src/searchLogic.ts`)
+La classe `SearchEngine` encapsule toute l'intelligence métier :
+- **Sanitisation** : Conversion en minuscules, normalisation Unicode (NFD) pour supprimer les accents, et filtrage strict des caractères non-alphanumériques.
+- **Validation** : Détection des entrées invalides pour alerter l'utilisateur.
+- **Algorithme** : Calcul du score de différence via une fenêtre glissante.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. Couche UI (`src/App.tsx`)
+L'interface React gère l'expérience utilisateur :
+- **Gestion d'État** : Utilisation de `useState` et `useMemo` pour optimiser les performances de recherche.
+- **Feedback** : Système d'alertes "Toast" et indicateurs visuels rouges/orange lors de saisies non-alphanumériques.
+- **Design** : Entièrement responsive avec Tailwind CSS v4.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🧠 L'Algorithme : Fenêtre Glissante (Sliding Window)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+L'algorithme calcule le nombre minimal de remplacements de caractères nécessaires pour qu'un terme de recherche ($S$) corresponde à une partie d'un terme candidat ($C$).
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Règles de fonctionnement :
+1. **Contrainte de Taille** : Si le candidat est plus court que la recherche, il est rejeté (`Infinity`).
+2. **Glissement** : On fait glisser $S$ sur $C$ et on compte les différences à chaque position.
+3. **Score Final** : Le score le plus bas trouvé durant le glissement est retenu.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Priorité du Tri :
+1. **Score le plus bas** (Similarité maximale).
+2. **Proximité de longueur** (Différence de taille minimale).
+3. **Ordre alphabétique**.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+
+## 🛠️ Commandes Utiles
+- `npm install` : Installer les dépendances.
+- `npm run dev` : Lancer le projet en local.
+- `npx vitest run` : Exécuter les tests unitaires de l'algorithme.
+
+---
+*Développé pour l'usage interne de LittleBig Connection - 2026.*
+]]>
+    </file>
+
+    <file path="src/searchLogic.ts">
+<![CDATA[
+export interface ResultDetail {
+  term: string;
+  score: number;
+  lenDiff: number;
+}
+
+export class SearchEngine {
+  public static sanitize(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  public static containsNonAlphanumeric(text: string): boolean {
+    if (!text) return false;
+    return !/^[a-z0-9]+$/i.test(text);
+  }
+
+  public static getDifferenceScore(src: string, dest: string): number {
+    if (dest.length < src.length) return Infinity;
+    let minDiff = Infinity;
+    for (let i = 0; i <= dest.length - src.length; i++) {
+      let currentDiff = 0;
+      for (let j = 0; j < src.length; j++) {
+        if (src[j] !== dest[i + j]) currentDiff++;
+      }
+      if (currentDiff < minDiff) minDiff = currentDiff;
+    }
+    return minDiff;
+  }
+
+  public static getDetailedSuggestions(searchTerm: string, list: string[], n: number): ResultDetail[] {
+    const sClean = this.sanitize(searchTerm);
+    if (!sClean || list.length === 0) return [];
+
+    return list
+      .map(term => {
+        const tClean = this.sanitize(term);
+        return {
+          term,
+          score: this.getDifferenceScore(sClean, tClean),
+          lenDiff: Math.abs(tClean.length - sClean.length)
+        };
+      })
+      .filter(res => res.score !== Infinity)
+      .sort((a, b) => (a.score - b.score) || (a.lenDiff - b.lenDiff) || a.term.localeCompare(b.term))
+      .slice(0, n);
+  }
+}
+]]>
+    </file>
+
+    <file path="src/searchLogic.test.ts">
+<![CDATA[
+import { describe, it, expect } from 'vitest';
+import { SearchEngine } from './searchLogic';
+
+describe('SearchEngine Algorithm', () => {
+  it('should find exact matches with 0 score', () => {
+    expect(SearchEngine.getDifferenceScore('gros', 'gros')).toBe(0);
+  });
+
+  it('should find "gros" in "agressif" with score 1', () => {
+    expect(SearchEngine.getDifferenceScore('gros', 'agressif')).toBe(1);
+  });
+
+  it('should reject terms shorter than query', () => {
+    expect(SearchEngine.getDifferenceScore('gros', 'gro')).toBe(Infinity);
+  });
+});
+]]>
