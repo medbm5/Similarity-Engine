@@ -1,6 +1,6 @@
 # 🚀 LexiMatch - Similarity Search Engine
 
-**LexiMatch** est un moteur de recherche de similarité haute performance développé pour **LittleBig Connection**. Il permet de filtrer et de classer des termes au sein d'un dataset personnalisé en utilisant un algorithme de comparaison par fenêtre glissante.
+**LexiMatch** est un moteur de recherche de similarité haute performance . Il permet de filtrer et de classer des termes au sein d'un dataset personnalisé en utilisant un algorithme de comparaison par fenêtre glissante.
 
 ---
 
@@ -43,3 +43,7 @@ L'algorithme calcule le nombre minimal de remplacements de caractères nécessai
 - `npm install` : Installer les dépendances.
 - `npm run dev` : Lancer le projet en local.
 - `npx vitest run` : Exécuter les tests unitaires de l'algorithme.
+
+  ## 🛠️ Demo
+- [Live Version](https://similarity-engine-sigma.vercel.app/) : Accéder à la version en ligne.
+
