@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { SearchEngine } from './utils/searchLogic'; // Import the logic class
 
 export default function App() {
